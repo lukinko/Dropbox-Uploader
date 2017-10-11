@@ -601,18 +601,24 @@ function db_chunked_upload_file
 
         #Uploading the chunk...
         echo > "$RESPONSE_FILE"
-        $CURL_BIN $CURL_ACCEPT_CERTIFICATES -X POST -L -s --show-error --globoff -i -o "$RESPONSE_FILE" --header "Authorization: Bearer $OAUTH_ACCESS_TOKEN" --header "Dropbox-API-Arg: {\"cursor\": {\"session_id\": \"$SESSION_ID\",\"offset\": $OFFSET},\"close\": false}" --header "Content-Type: application/octet-stream" --data-binary @"$CHUNK_FILE" "$API_CHUNKED_UPLOAD_APPEND_URL" 2> /dev/null
+        $CURL_BIN $CURL_ACCEPT_CERTIFICATES -X POST -L -s --show-error --globoff -i -o "$RESPONSE_FILE" \
+	--header "Authorization: Bearer $OAUTH_ACCESS_TOKEN" \
+	--header "Dropbox-API-Arg: {\"cursor\": {\"session_id\": \"$SESSION_ID\",\"offset\": $OFFSET},\"close\": false}" \
+	--header "Content-Type: application/octet-stream" \
+	--data-binary @"$CHUNK_FILE" "$API_CHUNKED_UPLOAD_APPEND_URL" 2> /dev/null
         #check_http_response not needed, because we have to retry the request in case of error
 
-        let OFFSET=$OFFSET+$CHUNK_REAL_SIZE
-
+       
         #Check
         if grep -q "^HTTP/1.1 200 OK" "$RESPONSE_FILE"; then
             print "."
             UPLOAD_ERROR=0
+	    let OFFSET=$OFFSET+$CHUNK_REAL_SIZE
+
         else
             print "*"
             let UPLOAD_ERROR=$UPLOAD_ERROR+1
+	    cp $RESPONSE_FILE ${RESPONSE_FILE}_${UPLOAD_ERROR}_err
 
             #On error, the upload is retried for max 3 times
             if [[ $UPLOAD_ERROR -gt 2 ]]; then
